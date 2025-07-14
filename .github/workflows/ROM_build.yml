@@ -1,0 +1,43 @@
+name: Build AI OS for citrus (PixelOS)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Set up environment
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y openjdk-17-jdk git wget curl unzip bc bison build-essential zip curl repo python-is-python3 gcc clang libssl-dev rsync flex ccache
+        java -version
+
+    - name: Create working directory
+      run: |
+        mkdir work && cd work
+        echo "Working directory ready"
+
+    - name: Initialize PixelOS repo
+      run: |
+        cd work
+        repo init -u https://github.com/PixelOS/manifest -b uvite --depth=1
+        git clone https://github.com/Nuapali/local_manifests.git .repo/local_manifests
+        repo sync -j4
+
+    - name: Start Build
+      run: |
+        cd work
+        source build/envsetup.sh
+        lunch aosp_citrus-userdebug
+        mka bacon -j$(nproc --all)
+
+    - name: Upload ROM
+      uses: actions/upload-artifact@v4
+      with:
+        name: AIOS-PixelOS-ROM
+        path: work/out/target/product/citrus/*.zip
