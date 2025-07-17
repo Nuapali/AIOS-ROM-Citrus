@@ -16,15 +16,15 @@ jobs:
     - name: Initialize ROM Source
       run: |
         mkdir rom && cd rom
-        repo init -u https://github.com/PixelExtended/manifest -b fourteen --depth=1
+        repo init -u https://github.com/PixelExtended/manifest -b topaz --depth=1
         repo sync -c --no-tags --no-clone-bundle --force-sync -j8
 
     - name: Clone Device Trees
       run: |
         cd rom
-        git clone https://github.com/PixelExtended-Devices/device_xiaomi_citrus.git -b fourteen device/xiaomi/citrus
-        git clone https://github.com/PixelExtended-Devices/vendor_xiaomi_citrus.git -b fourteen vendor/xiaomi/citrus
-        git clone https://github.com/PixelExtended-Devices/kernel_xiaomi_sm6115.git -b fourteen kernel/xiaomi/sm6115
+        git clone https://github.com/PixelExtended-Devices/device_xiaomi_citrus.git -b topaz device/xiaomi/citrus
+        git clone https://github.com/PixelExtended-Devices/vendor_xiaomi_citrus.git -b topaz vendor/xiaomi/citrus
+        git clone https://github.com/PixelExtended-Devices/kernel_xiaomi_sm6115.git -b topaz kernel/xiaomi/sm6115
 
     - name: Lunch and Build ROM
       run: |
@@ -36,7 +36,8 @@ jobs:
     - name: Upload ROM to Telegram
       run: |
         cd rom/out/target/product/citrus
-        curl -F document=@PixelExtended*.zip "https://api.telegram.org/bot7713120445:AAEDyx1NDy2lqrTWk90rCqT5kV6ewjStbsc/sendDocument?chat_id=7937734534"
+        ZIP=$(ls PixelExtended*.zip | head -n 1)
+        curl -F document=@"$ZIP" "https://api.telegram.org/bot7713120445:AAEDyx1NDy2lqrTWk90rCqT5kV6ewjStbsc/sendDocument?chat_id=7937734534"
 
     - name: Generate OTA JSON
       run: |
@@ -44,7 +45,7 @@ jobs:
         ZIP=$(ls PixelExtended*.zip)
         SIZE=$(stat -c%s "$ZIP")
         SHA256=$(sha256sum "$ZIP" | cut -d ' ' -f1)
-        VERSION=$(echo $ZIP | grep -oP '(?<=PixelExtended_)[^_]+')
+        VERSION=$(echo "$ZIP" | grep -oP '(?<=PixelExtended_)[^_]+')
         echo '[{"filename":"'$ZIP'","size":'$SIZE',"sha256":"'$SHA256'","version":"'$VERSION'"}]' > ota.json
 
     - name: Upload OTA JSON to GitHub Pages
