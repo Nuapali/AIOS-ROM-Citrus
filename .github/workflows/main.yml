@@ -1,0 +1,53 @@
+name: Build PixelExtended for Citrus
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Prepare Environment
+      run: |
+        sudo apt update
+        sudo apt install git repo bc curl build-essential zip -y
+
+    - name: Initialize ROM Source
+      run: |
+        mkdir rom && cd rom
+        repo init -u https://github.com/PixelExtended/manifest -b fourteen --depth=1
+        repo sync -c --no-tags --no-clone-bundle --force-sync -j8
+
+    - name: Clone Device Trees
+      run: |
+        cd rom
+        git clone https://github.com/PixelExtended-Devices/device_xiaomi_citrus.git -b fourteen device/xiaomi/citrus
+        git clone https://github.com/PixelExtended-Devices/vendor_xiaomi_citrus.git -b fourteen vendor/xiaomi/citrus
+        git clone https://github.com/PixelExtended-Devices/kernel_xiaomi_sm6115.git -b fourteen kernel/xiaomi/sm6115
+
+    - name: Lunch and Build ROM
+      run: |
+        cd rom
+        source build/envsetup.sh
+        lunch aosp_citrus-userdebug
+        mka bacon -j8
+
+    - name: Upload ROM to Telegram
+      run: |
+        cd rom/out/target/product/citrus
+        curl -F document=@PixelExtended*.zip "https://api.telegram.org/bot7713120445:AAEDyx1NDy2lqrTWk90rCqT5kV6ewjStbsc/sendDocument?chat_id=7937734534"
+
+    - name: Generate OTA JSON
+      run: |
+        cd rom/out/target/product/citrus
+        ZIP=$(ls PixelExtended*.zip)
+        SIZE=$(stat -c%s "$ZIP")
+        SHA256=$(sha256sum "$ZIP" | cut -d ' ' -f1)
+        VERSION=$(echo $ZIP | grep -oP '(?<=PixelExtended_)[^_]+')
+        echo '[{"filename":"'$ZIP'","size":'$SIZE',"sha256":"'$SHA256'","version":"'$VERSION'"}]' > ota.json
+
+    - name: Upload OTA JSON to GitHub Pages
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: rom/out/target/product/citrus/ota.json
